@@ -3,3 +3,4 @@ Requests==2.31.0
 scikit_learn==1.4.1.post1
 streamlit==1.31.1
 googletrans==4.0.0-rc1
+openpyxl==3.1.2
