@@ -63,16 +63,11 @@ def load_data(file_name):
     data = pd.read_excel(file_path).to_dict(orient='records')
     return data
 
-def save_data(file_name, data):
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    file_path = os.path.join(dir_path, file_name)
-    df = pd.DataFrame(data)
-    df.to_excel(file_path, index=False)
-
-def get_table_download_link(df):
+def get_table_download_link(data):
     towrite = BytesIO()
-    df.to_excel(towrite, index=False)  
-    towrite.seek(0)  
+    df = pd.DataFrame(data)
+    df.to_excel(towrite, index=True)  
+    towrite.seek(0)
     b64 = base64.b64encode(towrite.read()).decode()  
     href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="expenses.xlsx">Download the expenses file</a>'
     return href
@@ -87,9 +82,7 @@ def convert_data_to_text(budget):
 def translate_text(translation_dict, language):
     for lang in translation_dict:
         for key in translation_dict[lang]:
-            # Translate the text based on the selected language
             translated_text = translator.translate(translation_dict[lang][key], dest=language)
-            # Update the text in the dictionary
             translation_dict[lang][key] = translated_text.text
     return translation_dict
 
@@ -179,7 +172,6 @@ def main():
             'Categories': 'श्रेणियाँ',
             'Expenses': 'खर्च'
         },
-        # Add more languages as needed
     }
     st.set_page_config(page_title="Personal Finance Manager", page_icon=":receipt:")
     st.markdown("<h1 style='text-align: center;'>Personal Finance Manager</h1>", unsafe_allow_html=True)
@@ -209,8 +201,7 @@ def main():
             budget.add_expense(transaction)
             transactions.append(transaction.__dict__)
             st.success(translation[language]['Expense added successfully.'])
-            df = pd.DataFrame(transactions)
-            st.markdown(get_table_download_link(df), unsafe_allow_html=True)
+            st.markdown(get_table_download_link(transactions), unsafe_allow_html=True)
 
     elif action == (translation[language]['recommendations']):
         data_text = convert_data_to_text(budget)
@@ -243,7 +234,6 @@ def main():
             response_data = response.json()
             bot_response = response_data['choices'][0]['message']['content']
 
-            # Translate the bot's response to the user's language
             translator = Translator()
             translated_response = translator.translate(bot_response, dest=language).text
 
