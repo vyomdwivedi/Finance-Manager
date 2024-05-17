@@ -1,11 +1,13 @@
 import os
 import base64
 from io import BytesIO
+import time
 from googletrans import Translator# pip install googletrans==4.0.0-rc1
 import pandas as pd # pip install pandas
 from sklearn.cluster import KMeans # pip install scikit-learn
 import streamlit as st # pip install streamlit
 import requests # pip install requests
+from requests.exceptions import ReadTimeout # pip install requests
 
 translator = Translator()
 
@@ -63,11 +65,16 @@ def load_data(file_name):
     data = pd.read_excel(file_path).to_dict(orient='records')
     return data
 
-def get_table_download_link(data):
-    towrite = BytesIO()
+def save_data(file_name, data):
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    file_path = os.path.join(dir_path, file_name)
     df = pd.DataFrame(data)
-    df.to_excel(towrite, index=True)  
-    towrite.seek(0)
+    df.to_excel(file_path, index=False)
+
+def get_table_download_link(df):
+    towrite = BytesIO()
+    df.to_excel(towrite, index=False)  
+    towrite.seek(0)  
     b64 = base64.b64encode(towrite.read()).decode()  
     href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="expenses.xlsx">Download the expenses file</a>'
     return href
@@ -77,7 +84,7 @@ def convert_data_to_text(budget):
     expenses_text = "Expenses:\n"
     for expense in budget.expenses:
         expenses_text += f"{expense.date} - {expense.description} - {expense.amount} - {expense.category}\n"
-    return categories_text + expenses_text
+    return categories_text and expenses_text
 
 def translate_text(translation_dict, language):
     for lang in translation_dict:
@@ -173,10 +180,19 @@ def main():
             'Expenses': 'खर्च'
         },
     }
+    
     st.set_page_config(page_title="Personal Finance Manager", page_icon=":receipt:")
     st.markdown("<h1 style='text-align: center;'>Personal Finance Manager</h1>", unsafe_allow_html=True)
     language = st.sidebar.selectbox("Choose a language", ("English", "Spanish", "French", "Hindi")).lower()
-    translation = translate_text(translation, language)
+    # translation = translate_text(translation, language)
+    for _ in range(5):  # try 5 times
+        try:
+            translation = translate_text(translation, language)
+            break
+        except ReadTimeout:
+            time.sleep(1)  # wait for 1 second before trying again
+    else:
+        print("Failed to translate text after 5 attempts")
     options = ['add', 'recommendations']
     translated_options = [translation[language][option] for option in options]
     action = st.sidebar.selectbox(translation[language]['Choose an action'], translated_options)
@@ -201,7 +217,8 @@ def main():
             budget.add_expense(transaction)
             transactions.append(transaction.__dict__)
             st.success(translation[language]['Expense added successfully.'])
-            st.markdown(get_table_download_link(transactions), unsafe_allow_html=True)
+            df = pd.DataFrame(transactions)
+            st.markdown(get_table_download_link(df), unsafe_allow_html=True)
 
     elif action == (translation[language]['recommendations']):
         data_text = convert_data_to_text(budget)
