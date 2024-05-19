@@ -171,7 +171,7 @@ def main():
             'Expenditure': 'व्यय',
             'Enter date (dd/mm/yyyy): ': 'दिनांक दर्ज करें (दिनांक/माह/वर्ष)',
             'Enter description: ': 'विवरण दर्ज करें',
-            'Enter the amount: ': 'राशि दर्ज करें',
+            'Enter amount: ': 'राशि दर्ज करें',
             'Choose a category': 'एक श्रेणी चुनें',
             'Add Expense': 'व्यय जोड़ें',
             'Expense added successfully': 'व्यय सफलतापूर्वक जोड़ा गया।',
