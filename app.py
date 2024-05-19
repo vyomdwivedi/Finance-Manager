@@ -174,7 +174,7 @@ def main():
             'Enter amount: ': 'राशि दर्ज करें',
             'Choose a category': 'एक श्रेणी चुनें',
             'Add Expense': 'व्यय जोड़ें',
-            'Expense added successfully': 'व्यय सफलतापूर्वक जोड़ा गया।',
+            'Expense added successfully.': 'व्यय सफलतापूर्वक जोड़ा गया।',
             'Download the expenses file': 'व्यय फ़ाइल डाउनलोड करें',
             'Categories': 'श्रेणियाँ',
             'Expenses': 'खर्च'
