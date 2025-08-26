@@ -2,12 +2,12 @@ import os
 import base64
 from io import BytesIO
 import time
-from googletrans import Translator# pip install googletrans==4.0.0-rc1
+from googletrans import Translator # pip install googletrans==4.0.0-rc1
 import pandas as pd # pip install pandas
 from sklearn.cluster import KMeans # pip install scikit-learn
 import streamlit as st # pip install streamlit
 import requests # pip install requests
-from requests.exceptions import ReadTimeout # pip install requests
+from requests.exceptions import ReadTimeout
 
 translator = Translator()
 
@@ -21,31 +21,31 @@ class Transaction:
 class Budget:
     def __init__(self, categories):
         self.categories = categories
-        self.expenses = []
+        if 'expenses' not in st.session_state:
+            st.session_state['expenses'] = []
 
     def add_expense(self, transaction):
-        self.expenses.append(transaction)
+        st.session_state['expenses'].append(transaction.__dict__)
+
+    def get_expenses(self):
+        return [Transaction(**e) for e in st.session_state['expenses']]
 
     def get_total_expenditure(self):
-        total = 0
-        for expense in self.expenses:
-            total += expense.amount
-        return total
+        return sum(e['amount'] for e in st.session_state['expenses'])
 
     def get_category_expenditure(self, category):
-        total = 0
-        for expense in self.expenses:
-            if expense.category == category.lower():
-                total += expense.amount
-        return total
+        return sum(e['amount'] for e in st.session_state['expenses'] if e['category'] == category.lower())
 
     def get_expense_recommendations(self):
-        expenses_dict = [vars(expense) for expense in self.expenses]
+        expenses = self.get_expenses()
+        expenses_dict = [vars(expense) for expense in expenses]
         data = pd.DataFrame(expenses_dict)
         if 'date' in data.columns:
             data = data.drop(columns=['date'])
         if 'description' in data.columns:
             data = data.drop(columns=['description'])
+        if data.empty:
+            return {}
         data = pd.get_dummies(data, columns=['category'])
         n_clusters = min(3, len(data))
         kmeans = KMeans(n_clusters=n_clusters)
@@ -54,7 +54,7 @@ class Budget:
         for i, label in enumerate(kmeans.labels_):
             if label not in recommendations:
                 recommendations[label] = []
-            recommendations[label].append(self.expenses[i])
+            recommendations[label].append(expenses[i])
         return recommendations
 
 def load_data(file_name):
@@ -82,9 +82,9 @@ def get_table_download_link(df):
 def convert_data_to_text(budget):
     categories_text = f"Categories: {', '.join(budget.categories)}\n"
     expenses_text = "Expenses:\n"
-    for expense in budget.expenses:
+    for expense in budget.get_expenses():
         expenses_text += f"{expense.date} - {expense.description} - {expense.amount} - {expense.category}\n"
-    return categories_text and expenses_text
+    return categories_text + expenses_text
 
 def translate_text(translation_dict, language):
     for lang in translation_dict:
@@ -185,12 +185,12 @@ def main():
     st.markdown("<h1 style='text-align: center;'>Personal Finance Manager</h1>", unsafe_allow_html=True)
     language = st.sidebar.selectbox("Choose a language", ("English", "Spanish", "French", "Hindi")).lower()
     # translation = translate_text(translation, language)
-    for _ in range(5):  # try 5 times
+    for _ in range(5):
         try:
             translation = translate_text(translation, language)
             break
         except ReadTimeout:
-            time.sleep(1)  # wait for 1 second before trying again
+            time.sleep(1)
     else:
         print("Failed to translate text after 5 attempts")
     options = ['add', 'recommendations']
@@ -199,9 +199,6 @@ def main():
     categories = ['Groceries', 'Entertainment', 'Utilities', 'Investments']
     translated_categories = [translation[language][category] for category in categories]
     budget = Budget(translated_categories)
-    transactions = load_data("transactions.xlsx")
-    for transaction in transactions:
-        budget.add_expense(Transaction(**transaction))
     if action == (translation[language]['add']):
         st.write(translation[language]['Total Expenditure: '], budget.get_total_expenditure())
         for category in budget.categories:
@@ -215,9 +212,11 @@ def main():
         if st.button(translation[language]['Add Expense']):
             transaction = Transaction(date, description, amount, category)
             budget.add_expense(transaction)
-            transactions.append(transaction.__dict__)
             st.success(translation[language]['Expense added successfully.'])
-            df = pd.DataFrame(transactions)
+            st.rerun()
+        expenses = budget.get_expenses()
+        if expenses:
+            df = pd.DataFrame([vars(e) for e in expenses])
             st.markdown(get_table_download_link(df), unsafe_allow_html=True)
 
     elif action == (translation[language]['recommendations']):
